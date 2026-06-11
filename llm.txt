@@ -1,0 +1,40 @@
+# Podcast Ad Skipper (Python Prototype)
+
+## Goal
+
+Build a simple personal-use tool that removes ad breaks from a single podcast (initial target: Bloomberg Surveillance). The long-term goal is to implement this in Rust, but I want to prototype the detection algorithm in Python first because the DSP and experimentation loop will be much faster.
+
+This project is primarily a learning exercise in audio processing, RSS feeds, and eventually a Rust reimplementation.
+
+## High-Level Architecture
+
+1. Fetch and parse the podcast RSS feed.
+2. Download the latest episode audio.
+3. Detect ad break boundaries.
+4. Remove or skip the ad segments using `ffmpeg`.
+5. Optionally publish a private RSS feed pointing to the cleaned audio.
+
+## Initial Detection Algorithm
+
+I do **not** want to use AI or speech transcription initially.
+
+The hypothesis is that this particular show uses a highly consistent transition jingle around ad breaks. I want to explore whether simple signal processing is sufficient:
+
+* Extract a short reference clip of the ad-break jingle.
+* Convert both the reference clip and episode audio to a common format (e.g. mono 16 kHz WAV via `ffmpeg`).
+* Search the episode for occurrences of the reference jingle using audio fingerprinting or spectrogram similarity.
+* Identify the start/end of ad breaks from those matches.
+* Cut the corresponding spans from the audio.
+
+A simple heuristic solution that works for one show is preferable to a sophisticated general solution.
+
+## Constraints
+
+* Use Python for the prototype.
+* Use `ffmpeg` for all media conversion and cutting; do not reimplement codec handling.
+* Prefer simple, understandable algorithms over ML models.
+* Structure the code cleanly so that the core detection algorithm can later be ported to Rust.
+
+## Future Work
+
+Once the algorithm is understood and reasonably robust, reimplement the entire pipeline in Rust as a systems programming exercise. The Python version exists to de-risk the algorithm, not as the final product.
