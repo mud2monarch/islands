@@ -206,11 +206,11 @@ def download_audio(url: str, output_path: Path) -> Path:
 
 
 """
-Fetch transcript into memory
+Fetch text into memory
 """
 
 
-def fetch_transcript(url: str) -> str:
+def fetch_text(url: str) -> str:
     with urllib.request.urlopen(url) as response:
         return response.read().decode("utf-8")
 
@@ -234,7 +234,7 @@ def strip_episode(episode: Episode) -> str:
     ad_spans: list[int] = []
     end_ts: int = 0
 
-    chunks = chunk_transcript(fetch_transcript(episode.transcript))
+    chunks = chunk_transcript(fetch_text(episode.transcript))
     candidates: list[int] = []
 
     for i, chunk in enumerate(chunks):
