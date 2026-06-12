@@ -22,7 +22,7 @@ logging.basicConfig(
 def main():
     with urllib.request.urlopen(FEED_URL) as feed:
         episodes = filter_n_episodes(
-            feed=feed,
+            source=feed,
             num_episodes=2,
         )
 
