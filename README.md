@@ -1,5 +1,5 @@
-# islands
-Skip ads in podcasts
+# Islands
+Islands intelligently matches podcast mp3s against transcripts and reference clips and re-exports ad-free audio for personal use.
 
 > [!IMPORTANT]
 > WIP right now. Works for Bloomberg surveillance but not production ready.
