@@ -1,6 +1,15 @@
 # islands
 Skip ads in podcasts
 
+[!IMPORTANT]
+WIP right now. Works for Bloomberg surveillance but not production ready.
+
+# To Do
+- [ ] Operationalize for BBS
+- [ ] Make flexible for other BB podcasts
+- [ ] Make generic over any podcast?
+
+# Notes to self
 ffmpeg usage:
 `ffmpeg -ss 00:01:22 -t 00:00:10 -i US_Economic_Outlook_and_Bond_Signals.mp3 -c copy opening_jingle.mp3`
 
