@@ -1,8 +1,8 @@
 # islands
 Skip ads in podcasts
 
-[!IMPORTANT]
-WIP right now. Works for Bloomberg surveillance but not production ready.
+> [!IMPORTANT]
+> WIP right now. Works for Bloomberg surveillance but not production ready.
 
 # To Do
 - [ ] Operationalize for BBS
