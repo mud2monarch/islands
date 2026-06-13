@@ -3,7 +3,7 @@ import urllib.request
 
 from rich.logging import RichHandler
 
-from process import filter_n_episodes, strip_episode
+from islands.process import filter_n_episodes, strip_episode
 
 FEED_URL = "https://omny.fm/shows/bloomberg-surveillance/playlists/podcast.rss"
 

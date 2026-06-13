@@ -2,17 +2,19 @@ import logging
 import subprocess
 import urllib.request
 import xml.etree.ElementTree as ET
-from enum import Enum
 from pathlib import Path
 from typing import IO
 
 import librosa
+import numpy as np
 from rapidfuzz import fuzz
 
-from analysis import find_similar_mel_ts
+from .analysis import find_similar_mel_ts
+from .models import Episode, MediaKind, SurveillanceKind, TranscriptKind
 
 logger = logging.getLogger(__name__)
 
+VALID_AUDIO_SUFFIXES = {".mp3", ".wav", ".m4a", ".ogg", ".flac"}
 SAMPLE_RATE = 22050
 MEL_HOP_LENGTH = 512
 MEL_FPS = SAMPLE_RATE / MEL_HOP_LENGTH
@@ -27,31 +29,19 @@ NAMESPACES = {
 }
 
 
-class Episode:
-    def __init__(self, title, description, pub_date, mp3_link, transcript_link):
-        self.title: str = title
-        self.description: str = description
-        self.pub_date: str = pub_date
-        self.mp3: str = mp3_link
-        self.transcript: str = transcript_link
+def load_mel(path: Path) -> np.ndarray:
+    """load a mel spectrogram from a file
 
+    args:
+        path: the path to the audio file.
+    """
+    if path.suffix.lower() not in VALID_AUDIO_SUFFIXES:
+        raise ValueError(f"Invalid audio file: {path}")
 
-class SurveillanceKind(Enum):
-    FERRO = "ferro"
-    TK_IDEA = "tk_idea"
-    MONEY = "money"
-    TK_CANDIDATE = "tk"
-
-
-class MediaKind(Enum):
-    AUDIO = "audio/mpeg"
-    JPEG = "image/jpeg"
-
-
-class TranscriptKind(Enum):
-    VTT = "text/vtt"
-    SRT = "application/srt"
-    TEXT = "text/plain"
+    y, _ = librosa.load(path)
+    return librosa.feature.melspectrogram(
+        y=y, sr=SAMPLE_RATE, hop_length=MEL_HOP_LENGTH
+    )
 
 
 def guess_title(title: str) -> SurveillanceKind:
@@ -305,14 +295,14 @@ def strip_episode(episode: Episode) -> str:
     )
 
     audio_path = download_audio(
-        episode.mp3, Path(f"output/dirty/episodes/{episode.title}.mp3")
+        episode.mp3_url, Path(f"output/dirty/episodes/{episode.title}.mp3")
     )
 
     cumulative_ads: int = 0
     ad_spans: list[int] = []
     end_ts: int = 0
 
-    chunks = chunk_transcript(fetch_text(episode.transcript))
+    chunks = chunk_transcript(fetch_text(episode.transcript_url))
     candidates: list[int] = []
 
     for i, chunk in enumerate(chunks):
