@@ -1,16 +1,26 @@
 import logging
+import sqlite3
 import subprocess
 import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import IO
 
 import librosa
 import numpy as np
 from rapidfuzz import fuzz
 
+from islands.database import write_new_episodes
+
 from .analysis import find_similar_mel_ts
-from .models import Episode, MediaKind, SurveillanceKind, TranscriptKind
+from .models import (
+    ClipReference,
+    Episode,
+    EpisodeFilter,
+    MediaKind,
+    Podcast,
+    SurveillanceKind,
+    TranscriptKind,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +39,44 @@ NAMESPACES = {
 }
 
 
+def build_clip_references(directory: Path) -> list[ClipReference]:
+    """Build audio and text into a set of references for ad identification
+
+    args:
+        path: the path to the directory with audio files and a single text file
+    returns:
+        list of built ClipReferences
+    """
+    references: list[ClipReference] = []
+
+    if not directory.is_dir():
+        raise ValueError(f"Expected a directory at {directory}")
+
+    for path in sorted(directory.iterdir()):
+        if path.suffix.lower() == ".txt":
+            file = open(path, "r")
+            text = file.read()
+            lines = text.strip().split("\n")
+        elif path.suffix.lower() in VALID_AUDIO_SUFFIXES:
+            mels: list[np.ndarray] = []
+            mels.append(load_mel(path))
+
+    if len(mels) < len(lines) or len(mels) > len(lines):
+        logger.warning(
+            f"Number of reference audio clips ({len(mels)}) does not match transcript lines ({len(lines)}). Truncating longer set and attempting to continue."
+        )
+        lines = lines[: len(mels)]
+    for idx, item in enumerate(lines):
+        references.append(
+            ClipReference(
+                transcript_text=item,
+                audio_mel=mels[idx],
+            )
+        )
+
+    return references
+
+
 def load_mel(path: Path) -> np.ndarray:
     """load a mel spectrogram from a file
 
@@ -44,7 +92,23 @@ def load_mel(path: Path) -> np.ndarray:
     )
 
 
-def guess_title(title: str) -> SurveillanceKind:
+def make_surveillance_kind_filter(kind: SurveillanceKind) -> EpisodeFilter:
+    """Meta-function to filter elements based on SurveillanceKind
+
+    args:
+        kind: the SurveillanceKind for which you want to filter
+    returns:
+        an EpisodeFilter function
+    """
+
+    def episode_matches_kind(item: ET.Element) -> bool:
+        title = item.findtext("title", "")
+        return guess_surveillance_kind(title) == kind
+
+    return episode_matches_kind
+
+
+def guess_surveillance_kind(title: str) -> SurveillanceKind:
     """Guess at the kind of episode based on parts of the episode title.
 
     Args:
@@ -53,7 +117,7 @@ def guess_title(title: str) -> SurveillanceKind:
     Returns:
         Match to a SurveillanceKind.
 
-    TK_CANDIDATE is a guess because there is no brand identifier in the title of Tom Keene's radio show, while the other variants of Surveillance do have identifiers.
+    TK_CANDIDATE is a *guess* because there is no brand identifier in the title of Tom Keene's radio show, while the other variants of Surveillance do have identifiers.
     """
     if "Bloomberg Surveillance TV" in title:
         return SurveillanceKind.FERRO
@@ -61,50 +125,88 @@ def guess_title(title: str) -> SurveillanceKind:
     if "Single Best Idea" in title or "Tom Keene" in title:
         return SurveillanceKind.TK_IDEA
 
-    if "Bloomberg Money" in title:
+    if "The Money Show" in title:
         return SurveillanceKind.MONEY
 
     return SurveillanceKind.TK_CANDIDATE
 
 
+def get_podcast_info(rss_url: str) -> Podcast:
+    """Parse Podcast metadata from an RSS feed
+
+    args:
+        rss_url: the RSS feed identifying a podcast
+    returns:
+        A built Podcast object less reference clips
+    """
+    with urllib.request.urlopen(rss_url) as feed:
+        tree = ET.parse(feed)
+    root = tree.getroot()
+
+    title = root.findtext("./channel/title", "")
+    description = root.findtext("./channel/description", "")
+    pfp_url = root.findtext("./channel/image/url", "")
+
+    return Podcast(
+        title,
+        description,
+        pfp_url,
+        rss_url,
+        clip_references=[],
+    )
+
+
 def filter_n_episodes(
-    source: str | Path | IO[bytes] = "surveillance.rss",
-    num_episodes: int = 10,  # Consider changing this into target episodes
-    episode_kind: SurveillanceKind = SurveillanceKind.TK_CANDIDATE,
+    podcast: Podcast,
+    conn: sqlite3.Connection,
+    episode_filter: EpisodeFilter | None = None,
+    num_episodes: int = 2,
 ) -> list[Episode]:
-    """Get n Episodes, filtered by a specific variant of the Surveillance podcast.
+    """Get n Episodes from a podcast
 
     Args:
-        source: File-like object with the RSS feed, e.g., local RSS feed or open URL
-        num_episodes: Number of episodes you want to scan
-        episode_kind: Podcast type you want to look for
+        podcast: the Podcast you want to parse
+        conn: connection to the database
+        episode_filter: any predicate you'd like to meet
+        num_episodes: number of matching episodes to find
     """
     desired_episodes: list[Episode] = []
 
-    tree = ET.parse(source)
+    with urllib.request.urlopen(podcast.rss_url) as feed:
+        tree = ET.parse(feed)
     root = tree.getroot()
 
-    for item in root.findall("./channel/item")[:num_episodes]:
+    for item in root.findall("./channel/item"):
+        if len(desired_episodes) >= num_episodes:
+            break
+
+        if episode_filter is not None and not episode_filter(item):
+            continue
+
+        guid = item.findtext("guid", "").strip()
+        if not guid:
+            raise ValueError("guid is required")
+
         title = item.findtext("title", "")
+        description = item.findtext("description", "")
+        pub_date = item.findtext("pubDate", "")
+        mp3_link = None
+        transcript_url = None
 
-        if guess_title(title) == episode_kind:
-            description = item.findtext("description", "")
-            pub_date = item.findtext("pubDate", "")
-            mp3_link = None
-            transcript_url = None
+        for media in item.findall("media:content", NAMESPACES):
+            if media.attrib.get("type") == MediaKind.AUDIO.value:
+                mp3_link = media.attrib.get("url")
 
-            for media in item.findall("media:content", NAMESPACES):
-                if media.attrib.get("type") == MediaKind.AUDIO.value:
-                    mp3_link = media.attrib.get("url")
+        for transcript in item.findall("podcast:transcript", NAMESPACES):
+            if transcript.attrib.get("type") == TranscriptKind.TEXT.value:
+                transcript_url = transcript.attrib.get("url")
 
-            for transcript in item.findall("podcast:transcript", NAMESPACES):
-                if transcript.attrib.get("type") == TranscriptKind.TEXT.value:
-                    transcript_url = transcript.attrib.get("url")
+        if mp3_link is not None and transcript_url is not None:
+            desired_episodes.append(
+                Episode(guid, title, description, pub_date, mp3_link, transcript_url)
+            )
 
-            if mp3_link is not None and transcript_url is not None:
-                desired_episodes.append(
-                    Episode(title, description, pub_date, mp3_link, transcript_url)
-                )
+    write_new_episodes(conn, podcast.title, desired_episodes)
 
     return desired_episodes
 
@@ -276,11 +378,12 @@ def fetch_text(url: str) -> str:
         return response.read().decode("utf-8")
 
 
-def strip_episode(episode: Episode) -> str:
+def strip_episode(episode: Episode, references: list[ClipReference]) -> str:
     """Function to strip ads from an Episode
 
     Args:
         episode: Episode you want to strip
+        references: set of ClipReferences against which to match
     Returns:
         Filepath to the output file
     """

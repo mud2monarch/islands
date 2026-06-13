@@ -4,6 +4,10 @@ Islands intelligently matches podcast mp3s against transcripts and reference cli
 > [!IMPORTANT]
 > WIP right now. Works for Bloomberg surveillance but not production ready.
 
+Build a podcast as a directory in `reference/`
+- Include audio clips and transcript references
+- Audio clips and transcript references must be ordered in the same way. Use zero-padding (i.e., "reference\_001.mp3", "reference\_010.mp3") to ensure proper sorting.
+
 # To Do
 - [ ] Operationalize for BBS
 - [ ] Make flexible for other BB podcasts
