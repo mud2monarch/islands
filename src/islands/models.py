@@ -2,7 +2,6 @@ import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
 import numpy as np
 
@@ -23,7 +22,8 @@ class Podcast:
     description: str
     pfp_url: str
     rss_url: str
-    clip_references: list[ClipReference]
+    text_references: list[str]
+    audio_references: list[np.ndarray]
 
 
 @dataclass
@@ -35,17 +35,14 @@ class ReadyForProcessing:
         if not self.episodes:
             raise ValueError("episodes must be populated")
 
-        if not self.podcast.clip_references:
-            raise ValueError("podcast.clip_references must be populated")
+        if not self.podcast.audio_references:
+            raise ValueError("podcast.audio_reference must be populated")
+
+        if not self.podcast.text_references:
+            raise ValueError("podcast.text_references must be populated")
 
 
 EpisodeFilter = Callable[[ET.Element], bool]
-
-
-@dataclass
-class ClipReference:
-    transcript_text: str
-    audio_mel: np.ndarray
 
 
 class MediaKind(Enum):

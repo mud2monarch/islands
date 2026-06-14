@@ -5,6 +5,7 @@ __pycache__/
 
 *.db
 output/
+reference/
 samples/
 .DS_Store
 surveillance.rss

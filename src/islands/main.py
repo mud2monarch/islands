@@ -30,29 +30,37 @@ def main():
     queue: list[ReadyForProcessing] = []
 
     # Podcast construction
-    surveillance = get_podcast_info(
-        "https://omny.fm/shows/bloomberg-surveillance/playlists/podcast.rss"
+    # surveillance = get_podcast_info(
+    #     "https://omny.fm/shows/bloomberg-surveillance/playlists/podcast.rss"
+    # )
+    # surveillance.text_references, surveillance.audio_references = build_clip_references(
+    #     Path("../reference/surveillance")
+    # )
+    # surveillance_filter = make_surveillance_kind_filter(SurveillanceKind.TK_CANDIDATE)
+    # surveillance_episodes = filter_n_episodes(
+    #     podcast=surveillance,
+    #     conn=conn,
+    #     episode_filter=surveillance_filter,
+    #     num_episodes=3,
+    # )
+
+    wsw = get_podcast_info(
+        "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/3441857d-10f0-47c5-991f-ae3c0021f233/9040f928-9636-419d-8ac6-ae3c0021f241/podcast.rss"
     )
-    surveillance.clip_references = build_clip_references(
-        Path("../reference/surveillance")
+    wsw.text_references, wsw.audio_references = build_clip_references(
+        Path("reference/wsw")
     )
-    surveillance_filter = make_surveillance_kind_filter(SurveillanceKind.TK_CANDIDATE)
-    surveillance_episodes = filter_n_episodes(
-        podcast=surveillance,
+    wsw_episodes = filter_n_episodes(
+        podcast=wsw,
         conn=conn,
-        episode_filter=surveillance_filter,
-        num_episodes=3,
+        num_episodes=1,
     )
 
-    queue.append(
-        ReadyForProcessing(episodes=surveillance_episodes, podcast=surveillance)
-    )
-
-    logging.info(f"Found {len(surveillance_episodes)} matching episodes.")
+    queue.append(ReadyForProcessing(episodes=wsw_episodes, podcast=wsw))
 
     for item in queue:
         for ep in item.episodes:
-            output_path = strip_episode(ep, item.podcast.clip_references)
+            output_path = strip_episode(ep, item.podcast)
             logging.info(f"Wrote ad-free episode to {output_path}.")
 
 

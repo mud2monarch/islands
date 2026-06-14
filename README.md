@@ -6,12 +6,14 @@ Islands intelligently matches podcast mp3s against transcripts and reference cli
 
 Build a podcast as a directory in `reference/`
 - Include audio clips and transcript references
-- Audio clips and transcript references must be ordered in the same way. Use zero-padding (i.e., "reference\_001.mp3", "reference\_010.mp3") to ensure proper sorting.
 
 # To Do
 - [ ] Operationalize for BBS
-- [ ] Make flexible for other BB podcasts
-- [ ] Make generic over any podcast?
+- [x] Make flexible for other BB podcasts
+- [x] Make generic over any podcast?
+- [ ] Store state in DB
+- [ ] Add R2 connections
+- [ ] Add RSS writes
 
 # Notes to self
 ffmpeg usage:

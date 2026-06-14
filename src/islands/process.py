@@ -13,7 +13,6 @@ from islands.database import write_new_episodes
 
 from .analysis import find_similar_mel_ts
 from .models import (
-    ClipReference,
     Episode,
     EpisodeFilter,
     MediaKind,
@@ -39,42 +38,29 @@ NAMESPACES = {
 }
 
 
-def build_clip_references(directory: Path) -> list[ClipReference]:
+def build_clip_references(directory: Path) -> tuple[list[str], list[np.ndarray]]:
     """Build audio and text into a set of references for ad identification
 
     args:
         path: the path to the directory with audio files and a single text file
     returns:
-        list of built ClipReferences
+        list of audio and text references
     """
-    references: list[ClipReference] = []
+    text_references: list[str] = []
+    audio_mels: list[np.ndarray] = []
 
     if not directory.is_dir():
         raise ValueError(f"Expected a directory at {directory}")
 
-    for path in sorted(directory.iterdir()):
+    for path in directory.iterdir():
         if path.suffix.lower() == ".txt":
             file = open(path, "r")
             text = file.read()
-            lines = text.strip().split("\n")
+            text_references = text.strip().split("\n")
         elif path.suffix.lower() in VALID_AUDIO_SUFFIXES:
-            mels: list[np.ndarray] = []
-            mels.append(load_mel(path))
+            audio_mels.append(load_mel(path))
 
-    if len(mels) < len(lines) or len(mels) > len(lines):
-        logger.warning(
-            f"Number of reference audio clips ({len(mels)}) does not match transcript lines ({len(lines)}). Truncating longer set and attempting to continue."
-        )
-        lines = lines[: len(mels)]
-    for idx, item in enumerate(lines):
-        references.append(
-            ClipReference(
-                transcript_text=item,
-                audio_mel=mels[idx],
-            )
-        )
-
-    return references
+    return text_references, audio_mels
 
 
 def load_mel(path: Path) -> np.ndarray:
@@ -152,7 +138,8 @@ def get_podcast_info(rss_url: str) -> Podcast:
         description,
         pfp_url,
         rss_url,
-        clip_references=[],
+        text_references=[],
+        audio_references=[],
     )
 
 
@@ -378,7 +365,32 @@ def fetch_text(url: str) -> str:
         return response.read().decode("utf-8")
 
 
-def strip_episode(episode: Episode, references: list[ClipReference]) -> str:
+def fuzzy_contains_phrase(
+    target_text: str,
+    reference_phrase: str,
+    threshold: float | int = 85,
+) -> bool:
+    """Search a piece of text to see if it contains a reference phrase
+
+    args:
+        target_text: target text to test
+        reference_phrase: phrase for which you're looking. Should be all lowercase
+        threshold: value between 0 and 100, higher is more similar
+    returns:
+        whether target_text contains reference_phrase
+    """
+    words = target_text.strip().lower().split()
+    phrase_len = len(reference_phrase.strip().split())
+
+    for i in range(len(words) - phrase_len + 1):
+        window = " ".join(words[i : i + phrase_len])
+        if fuzz.ratio(window, reference_phrase) >= threshold:
+            return True
+
+    return False
+
+
+def strip_episode(episode: Episode, podcast: Podcast) -> str:
     """Function to strip ads from an Episode
 
     Args:
@@ -388,33 +400,23 @@ def strip_episode(episode: Episode, references: list[ClipReference]) -> str:
         Filepath to the output file
     """
 
-    opening_jingle_y, _ = librosa.load("reference/surveillance_opening_jingle.mp3")
-    opening_mel = librosa.feature.melspectrogram(
-        y=opening_jingle_y, sr=SAMPLE_RATE, hop_length=MEL_HOP_LENGTH
-    )
-    return_jingle_y, _ = librosa.load("reference/surveillance_return_jingle.mp3")
-    return_mel = librosa.feature.melspectrogram(
-        y=return_jingle_y, sr=SAMPLE_RATE, hop_length=MEL_HOP_LENGTH
-    )
+    MEL_MATCH_CONFIDENCE = 0.6
+    TEST_CLIP_SECONDS = 240
 
     audio_path = download_audio(
         episode.mp3_url, Path(f"output/dirty/episodes/{episode.title}.mp3")
     )
-
     cumulative_ads: int = 0
     ad_spans: list[int] = []
     end_ts: int = 0
-
-    chunks = chunk_transcript(fetch_text(episode.transcript_url))
     candidates: list[int] = []
 
+    chunks = chunk_transcript(fetch_text(episode.transcript_url))
     for i, chunk in enumerate(chunks):
         ts, text = chunk
-        first_26_words = " ".join(text.strip().split()[:26])
 
-        if (
-            fuzz.ratio(OPENING_TRANSCRIPT, first_26_words) > 70
-            or fuzz.ratio(RETURN_TRANSCRIPT, first_26_words) > 70
+        if any(
+            fuzzy_contains_phrase(text, phrase) for phrase in podcast.text_references
         ):
             candidates.append(ts)
 
@@ -422,6 +424,8 @@ def strip_episode(episode: Episode, references: list[ClipReference]) -> str:
             end_ts = ts
 
     logger.info(f"found {len(candidates)} candidates")
+    if len(candidates) == 0:
+        raise ValueError("no candidates found")
 
     return_timestamps: list[int] = []
 
@@ -435,7 +439,7 @@ def strip_episode(episode: Episode, references: list[ClipReference]) -> str:
 
         clip_audio(
             clip_start,
-            180,
+            TEST_CLIP_SECONDS,
             str(audio_path),
             f"output/dirty/comparison/clip_{i}.wav",
         )
@@ -448,17 +452,15 @@ def strip_episode(episode: Episode, references: list[ClipReference]) -> str:
         return_secs: int
         confidence: float
 
-        # if this is the opening ad read
-        if i == 0:
-            return_secs, confidence = find_similar_mel_ts(
-                clip_mel, opening_mel, MEL_FPS
-            )
-        else:
-            return_secs, confidence = find_similar_mel_ts(clip_mel, return_mel, MEL_FPS)
+        matches = [
+            find_similar_mel_ts(clip_mel, ref_mel, MEL_FPS)
+            for ref_mel in podcast.audio_references
+        ]
+        return_secs, confidence = max(matches, key=lambda match: match[1])
 
         real_ts = clip_start + return_secs
 
-        if confidence > 0.7:
+        if confidence > MEL_MATCH_CONFIDENCE:
             # Register the new return point
             return_timestamps.append(real_ts)
             # Update the total drift in timestamps
