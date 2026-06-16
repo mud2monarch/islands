@@ -8,7 +8,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from islands.analysis import cosine_similarity  # noqa: E402
-from islands.process import MEL_FPS, MEL_HOP_LENGTH, SAMPLE_RATE, int_to_ts, ts_to_int  # noqa: E402
+from islands.audio import MEL_FPS, MEL_HOP_LENGTH, SAMPLE_RATE  # noqa: E402
+from islands.text import int_to_ts, ts_to_int  # noqa: E402
 
 
 def parse_timestamp(value: str) -> int:

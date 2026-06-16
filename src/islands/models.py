@@ -8,6 +8,7 @@ import numpy as np
 
 @dataclass(frozen=True)
 class Episode:
+    podcast: Podcast
     guid: str
     title: str
     description: str
@@ -27,6 +28,17 @@ class Podcast:
 
 
 @dataclass
+class EpisodeForRss:
+    guid: str
+    title: str
+    description: str
+    pub_date: str
+    output_bucket_key: str
+    duration: str
+    file_size_bytes: int
+
+
+@dataclass
 class ReadyForProcessing:
     episodes: list[Episode]
     podcast: Podcast
@@ -42,6 +54,7 @@ class ReadyForProcessing:
             raise ValueError("podcast.text_references must be populated")
 
 
+# An EpisodeFilter returns True if you WANT to keep it
 EpisodeFilter = Callable[[ET.Element], bool]
 
 

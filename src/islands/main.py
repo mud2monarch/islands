@@ -3,14 +3,19 @@ from pathlib import Path
 
 from rich.logging import RichHandler
 
+from islands.audio import build_clip_references, get_duration
 from islands.database import init as database_init
+from islands.database import (
+    write_new_episode,
+    write_new_podcast,
+)
 from islands.models import ReadyForProcessing, SurveillanceKind
-from islands.process import (
-    build_clip_references,
-    filter_n_episodes,
+from islands.network import upload_episode
+from islands.process import strip_episode
+from islands.rss import (
+    get_n_new_episodes,
     get_podcast_info,
     make_surveillance_kind_filter,
-    strip_episode,
 )
 
 logging.basicConfig(
@@ -50,18 +55,30 @@ def main():
     wsw.text_references, wsw.audio_references = build_clip_references(
         Path("reference/wsw")
     )
-    wsw_episodes = filter_n_episodes(
+    wsw_episodes = get_n_new_episodes(
         podcast=wsw,
         conn=conn,
         num_episodes=1,
     )
 
-    queue.append(ReadyForProcessing(episodes=wsw_episodes, podcast=wsw))
+    if len(wsw_episodes) > 0:
+        queue.append(ReadyForProcessing(episodes=wsw_episodes, podcast=wsw))
+    else:
+        logging.warning(f"No new episodes to process for podcast {wsw.title}.")
 
     for item in queue:
+        write_new_podcast(conn, item.podcast)
+
         for ep in item.episodes:
             output_path = strip_episode(ep, item.podcast)
             logging.info(f"Wrote ad-free episode to {output_path}.")
+
+            duration = get_duration(output_path)
+            bytes = output_path.stat().st_size
+
+            storage_key = upload_episode(output_path, ep)
+
+            write_new_episode(conn, ep, storage_key, duration, bytes)
 
 
 if __name__ == "__main__":

@@ -9,11 +9,13 @@ Build a podcast as a directory in `reference/`
 
 # To Do
 - [ ] Operationalize for BBS
+- [ ] Add a function that allows for manually redoing a podcast.
 - [x] Make flexible for other BB podcasts
 - [x] Make generic over any podcast?
-- [ ] Store state in DB
-- [ ] Add R2 connections
+- [x] Store state in DB
+- [x] Add R2 connections
 - [ ] Add RSS writes
+- [ ] Add R2 storage cleanup
 
 # Notes to self
 ffmpeg usage:
