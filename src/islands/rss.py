@@ -159,7 +159,7 @@ def guess_surveillance_kind(title: str) -> SurveillanceKind:
 
 
 def write_rss_feed(conn: sqlite3.Connection, podcast: Podcast) -> Path:
-    """Write an RSS feed with all episoes of a given Podcast.
+    """Write an RSS feed with all episodes of a given Podcast.
 
     Args:
         conn: the database connection

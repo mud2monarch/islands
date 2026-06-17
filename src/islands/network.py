@@ -10,7 +10,13 @@ from dotenv import load_dotenv
 from islands.models import Episode
 
 logger = logging.getLogger(__name__)
+
 load_dotenv()
+ACCESS_KEY_ID = os.getenv("ACCESS_KEY_ID")
+SECRET_ACCESS_KEY = os.getenv("SECRET_ACCESS_KEY")
+BUCKET_NAME = os.getenv("BUCKET_NAME")
+ENDPOINT_URL = os.getenv("BUCKET_ENDPOINT_URL")
+PUBLIC_BUCKET_ROOT = os.getenv("PUBLIC_BUCKET_ROOT")
 
 
 def download_audio(url: str, output_path: Path) -> Path:
@@ -52,33 +58,34 @@ def upload_episode(path: Path, episode: Episode) -> str:
     Returns:
         The key of the uploaded episode
     """
-    access_key_id = os.getenv("ACCESS_KEY_ID")
-    secret_access_key = os.getenv("SECRET_ACCESS_KEY")
-    bucket_name = os.getenv("BUCKET_NAME")
-    endpoint_url = os.getenv("BUCKET_ENDPOINT_URL")
 
     if (
-        access_key_id is None
-        or secret_access_key is None
-        or bucket_name is None
-        or endpoint_url is None
+        ACCESS_KEY_ID is None
+        or SECRET_ACCESS_KEY is None
+        or BUCKET_NAME is None
+        or ENDPOINT_URL is None
     ):
         raise ValueError("Missing object storage configuration")
 
     s3 = boto3.client(
         service_name="s3",
-        endpoint_url=endpoint_url,
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
+        endpoint_url=ENDPOINT_URL,
+        aws_access_key_id=ACCESS_KEY_ID,
+        aws_secret_access_key=SECRET_ACCESS_KEY,
         region_name="auto",
     )
 
     key = format_bucket_key(episode)
 
     with open(path, "rb") as f:
-        s3.upload_fileobj(f, bucket_name, key)
+        s3.upload_fileobj(
+            f,
+            BUCKET_NAME,
+            key,
+            ExtraArgs={"ContentType": "audio/mpeg"},
+        )
 
-    logger.info(f"Uploaded {path} to {bucket_name}/{key}.")
+    logger.info(f"Uploaded {path} to {BUCKET_NAME}/{key}.")
 
     return key
 
@@ -111,9 +118,43 @@ def normalize_key_part(text: str) -> str:
 
 
 def get_public_object_url(key: str) -> str:
-    public_bucket_root = os.getenv("PUBLIC_BUCKET_ROOT")
 
-    if public_bucket_root is None:
+    if PUBLIC_BUCKET_ROOT is None:
         raise ValueError("Missing environment variable PUBLIC_BUCKET_ROOT")
 
-    return f"{public_bucket_root.rstrip('/')}/{key.lstrip('/')}"
+    return f"{PUBLIC_BUCKET_ROOT.rstrip('/')}/{key.lstrip('/')}"
+
+
+def upload_rss_feed(path: Path) -> str:
+    """Upload rss feed to object storage"""
+
+    if (
+        ACCESS_KEY_ID is None
+        or SECRET_ACCESS_KEY is None
+        or BUCKET_NAME is None
+        or ENDPOINT_URL is None
+    ):
+        raise ValueError("Missing object storage configuration")
+
+    s3 = boto3.client(
+        service_name="s3",
+        endpoint_url=ENDPOINT_URL,
+        aws_access_key_id=ACCESS_KEY_ID,
+        aws_secret_access_key=SECRET_ACCESS_KEY,
+        region_name="auto",
+    )
+
+    # output/clean/{normalize_title(podcast.title)}.xml
+    key = str(path).split("/")[-1]
+
+    with open(path, "rb") as f:
+        s3.upload_fileobj(
+            f,
+            BUCKET_NAME,
+            key,
+            ExtraArgs={"ContentType": "application/rss+xml; charset=utf-8"},
+        )
+
+    logger.info(f"Uploaded {path} to {BUCKET_NAME}/{key}.")
+
+    return key

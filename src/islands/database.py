@@ -165,6 +165,7 @@ def get_rss_relevant_episode_details(
                 file_size_bytes
             from episodes
             where podcast_rss_url = ?
+            order by created_at asc
         """,
         (podcast.rss_url,),
     ).fetchall()
