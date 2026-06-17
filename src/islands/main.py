@@ -1,6 +1,8 @@
 import logging
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from rich.logging import RichHandler
 
 from islands.audio import build_clip_references, get_duration
@@ -19,6 +21,7 @@ from islands.rss import (
     write_rss_feed,
 )
 
+load_dotenv()
 logging.basicConfig(
     level=logging.INFO,
     format="%(message)s",
@@ -35,6 +38,7 @@ def main():
     conn = database_init()
     queue: list[ReadyForProcessing] = []
 
+    RSS_PREFIX = os.getenv("RSS_PREFIX")
     WSW_FEED = "https://omny.fm/shows/wall-street-week/playlists/podcast.rss"
     SURVEILLANCE_FEED = (
         "https://omny.fm/shows/bloomberg-surveillance/playlists/podcast.rss"
@@ -75,7 +79,7 @@ def main():
         rss_feed = write_rss_feed(conn, item.podcast)
         logging.info(f"Wrote RSS feed to {rss_feed}.")
 
-        rss_key = upload_rss_feed(rss_feed)
+        rss_key = upload_rss_feed(rss_feed, prefix=RSS_PREFIX)
         logging.info(f"Uploaded RSS feed to {get_public_object_url(rss_key)}.")
 
 

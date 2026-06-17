@@ -125,7 +125,7 @@ def get_public_object_url(key: str) -> str:
     return f"{PUBLIC_BUCKET_ROOT.rstrip('/')}/{key.lstrip('/')}"
 
 
-def upload_rss_feed(path: Path) -> str:
+def upload_rss_feed(path: Path, prefix: str | None = None) -> str:
     """Upload rss feed to object storage"""
 
     if (
@@ -145,7 +145,10 @@ def upload_rss_feed(path: Path) -> str:
     )
 
     # output/clean/{normalize_title(podcast.title)}.xml
-    key = str(path).split("/")[-1]
+    if prefix is not None:
+        key = f"{prefix}-{str(path).split('/')[-1]}"
+    else:
+        key = str(path).split("/")[-1]
 
     with open(path, "rb") as f:
         s3.upload_fileobj(
