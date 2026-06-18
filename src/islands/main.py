@@ -67,6 +67,9 @@ def main():
 
         for ep in item.episodes:
             output_path = strip_episode(ep, item.podcast)
+            if output_path is None:
+                logging.warning(f"Failed to process, {ep.title} skipping.")
+                continue
             logging.info(f"Wrote ad-free episode to {output_path}.")
 
             duration = get_duration(output_path)

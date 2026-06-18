@@ -19,7 +19,7 @@ from .text import chunk_transcript, fuzzy_contains_phrase, int_to_ts, normalize_
 logger = logging.getLogger(__name__)
 
 
-def strip_episode(episode: Episode, podcast: Podcast) -> Path:
+def strip_episode(episode: Episode, podcast: Podcast) -> Path | None:
     """Function to strip ads from an Episode
 
     Args:
@@ -54,7 +54,7 @@ def strip_episode(episode: Episode, podcast: Podcast) -> Path:
 
     logger.info(f"found {len(candidates)} candidates")
     if len(candidates) == 0:
-        raise ValueError("no candidates found")
+        return None
 
     return_timestamps: list[int] = []
 
