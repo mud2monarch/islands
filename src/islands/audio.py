@@ -28,9 +28,10 @@ def build_clip_references(directory: Path) -> tuple[list[str], list[np.ndarray]]
 
     for path in directory.iterdir():
         if path.suffix.lower() == ".txt":
-            file = open(path, "r")
-            text = file.read()
-            text_references = text.strip().lower().split("\n")
+            if path.stem.lower() == "text_references":
+                file = open(path, "r")
+                text = file.read()
+                text_references = text.strip().lower().split("\n")
         elif path.suffix.lower() in VALID_AUDIO_SUFFIXES:
             audio_mels.append(load_mel(path))
 

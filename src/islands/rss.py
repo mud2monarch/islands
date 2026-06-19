@@ -2,6 +2,8 @@ import logging
 import sqlite3
 import urllib.request
 import xml.etree.ElementTree as ET
+from datetime import date
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 from islands.database import get_all_episode_guids, get_rss_relevant_episode_details
@@ -54,6 +56,7 @@ def get_podcast_info(rss_url: str) -> Podcast:
 def get_n_new_episodes(
     podcast: Podcast,
     conn: sqlite3.Connection,
+    start_date: date | None,
     episode_filter: EpisodeFilter | None = None,
     num_episodes: int = 7,
 ) -> list[Episode]:
@@ -62,6 +65,7 @@ def get_n_new_episodes(
     Args:
         podcast: the Podcast you want to parse
         conn: connection to the database
+        start_date: date before which you don't want to parse
         episode_filter: any predicate you'd like to meet
         num_episodes: number of matching episodes to find. will not return episodes that have already been processed
     """
@@ -69,7 +73,11 @@ def get_n_new_episodes(
     completed_episodes = get_all_episode_guids(conn, podcast)
 
     with urllib.request.urlopen(podcast.rss_url) as feed:
+        logger.info("parsing rss feed")
+
         tree = ET.parse(feed)
+
+        logger.info("Finished parsing rss feed")
     root = tree.getroot()
 
     for item in root.findall("./channel/item"):
@@ -79,9 +87,13 @@ def get_n_new_episodes(
         if episode_filter is not None and not episode_filter(item):
             continue
 
+        pub_date_txt = item.findtext("pubDate", "")
+        pub_datetime = parsedate_to_datetime(pub_date_txt)
+        if start_date is not None and pub_datetime.date() < start_date:
+            continue
+
         title = item.findtext("title", "")
         description = item.findtext("description", "")
-        pub_date = item.findtext("pubDate", "")
         mp3_link = None
         transcript_url = None
 
@@ -110,12 +122,13 @@ def get_n_new_episodes(
                     guid,
                     title,
                     description,
-                    pub_date,
+                    pub_date_txt,
                     mp3_link,
                     transcript_url,
                 )
             )
 
+    logger.info(f"got {len(desired_episodes)} episodes.")
     return desired_episodes
 
 

@@ -17,7 +17,8 @@ Build a podcast as a directory in `reference/`
 - [x] Add RSS writes
 - [ ] Add R2 storage cleanup
 - [ ] Set up on DO
-- [ ] Add a date limiter to filter_n_episodes
+- [ ] Make usable via cli
+- [x] Add a date limiter to filter_n_episodes
 
 # Notes to self
 ffmpeg usage:

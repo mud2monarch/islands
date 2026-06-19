@@ -17,3 +17,13 @@ def parse_args() -> argparse.Namespace:
         help="Number of recent RSS items to scan.",
     )
     return parser.parse_args()
+
+
+"""
+Default use is to run
+
+uv run islands
+
+and it auto-discovers you rrss_link, refs, and text_references
+
+"""

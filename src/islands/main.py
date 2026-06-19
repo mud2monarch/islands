@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -51,6 +52,7 @@ def main():
     surveillance_episodes = get_n_new_episodes(
         podcast=surveillance,
         episode_filter=make_surveillance_kind_filter(SurveillanceKind.TK_CANDIDATE),
+        start_date=date(2026, 6, 13),
         conn=conn,
         num_episodes=7,
     )
