@@ -45,24 +45,22 @@ def main():
         "https://omny.fm/shows/bloomberg-surveillance/playlists/podcast.rss"
     )
 
-    surveillance = get_podcast_info(SURVEILLANCE_FEED)
-    surveillance.text_references, surveillance.audio_references = build_clip_references(
+    wsw = get_podcast_info(WSW_FEED)
+    wsw.text_references, wsw.audio_references = build_clip_references(
         Path("reference/surveillance")
     )
-    surveillance_episodes = get_n_new_episodes(
-        podcast=surveillance,
-        episode_filter=make_surveillance_kind_filter(SurveillanceKind.TK_CANDIDATE),
+    wsw_episodes = get_n_new_episodes(
+        podcast=wsw,
+        # episode_filter=make_surveillance_kind_filter(SurveillanceKind.TK_CANDIDATE),
         start_date=date(2026, 6, 13),
         conn=conn,
-        num_episodes=7,
+        num_episodes=3,
     )
 
-    if len(surveillance_episodes) > 0:
-        queue.append(
-            ReadyForProcessing(episodes=surveillance_episodes, podcast=surveillance)
-        )
+    if len(wsw_episodes) > 0:
+        queue.append(ReadyForProcessing(episodes=wsw_episodes, podcast=wsw))
     else:
-        logging.warning(f"No new episodes to process for podcast {surveillance.title}.")
+        logging.warning(f"No new episodes to process for podcast {wsw.title}.")
 
     for item in queue:
         write_new_podcast(conn, item.podcast)
