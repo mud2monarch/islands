@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from rich.logging import RichHandler
 
 from islands.audio import build_clip_references, get_duration
+from islands.cli import parse_args
 from islands.database import init as database_init
 from islands.database import (
     write_new_episode,
@@ -39,28 +40,33 @@ def main():
     conn = database_init()
     queue: list[ReadyForProcessing] = []
 
+    args = parse_args()
+    start_date: date | None = args.start_date
+
     RSS_PREFIX = os.getenv("RSS_PREFIX")
     WSW_FEED = "https://omny.fm/shows/wall-street-week/playlists/podcast.rss"
     SURVEILLANCE_FEED = (
         "https://omny.fm/shows/bloomberg-surveillance/playlists/podcast.rss"
     )
 
-    wsw = get_podcast_info(WSW_FEED)
-    wsw.text_references, wsw.audio_references = build_clip_references(
+    surveillance = get_podcast_info(SURVEILLANCE_FEED)
+    surveillance.text_references, surveillance.audio_references = build_clip_references(
         Path("reference/surveillance")
     )
-    wsw_episodes = get_n_new_episodes(
-        podcast=wsw,
-        # episode_filter=make_surveillance_kind_filter(SurveillanceKind.TK_CANDIDATE),
-        start_date=date(2026, 6, 13),
+    surveillance_episodes = get_n_new_episodes(
+        podcast=surveillance,
+        episode_filter=make_surveillance_kind_filter(SurveillanceKind.TK_CANDIDATE),
+        start_date=start_date,
         conn=conn,
         num_episodes=3,
     )
 
-    if len(wsw_episodes) > 0:
-        queue.append(ReadyForProcessing(episodes=wsw_episodes, podcast=wsw))
+    if len(surveillance_episodes) > 0:
+        queue.append(
+            ReadyForProcessing(episodes=surveillance_episodes, podcast=surveillance)
+        )
     else:
-        logging.warning(f"No new episodes to process for podcast {wsw.title}.")
+        logging.warning(f"No new episodes to process for podcast {surveillance.title}.")
 
     for item in queue:
         write_new_podcast(conn, item.podcast)

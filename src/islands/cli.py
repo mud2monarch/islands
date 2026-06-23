@@ -1,4 +1,5 @@
 import argparse
+from datetime import date
 
 
 def parse_args() -> argparse.Namespace:
@@ -7,14 +8,10 @@ def parse_args() -> argparse.Namespace:
         description="Strip ads from podcast episodes.",
     )
     parser.add_argument(
-        "--feed-url",
-        help="RSS feed URL to process.",
-    )
-    parser.add_argument(
-        "--num-episodes",
-        type=int,
-        default=2,
-        help="Number of recent RSS items to scan.",
+        "--start",
+        type=date.fromisoformat,
+        dest="start_date",
+        help="Starting date down to which you want to parse",
     )
     return parser.parse_args()
 
