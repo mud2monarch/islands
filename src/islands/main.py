@@ -13,13 +13,13 @@ from islands.database import (
     write_new_episode,
     write_new_podcast,
 )
-from islands.models import ReadyForProcessing, SurveillanceKind
+from islands.filters import surveillance_filter
+from islands.models import ReadyForProcessing
 from islands.network import get_public_object_url, upload_episode, upload_rss_feed
 from islands.process import strip_episode
 from islands.rss import (
     get_n_new_episodes,
     get_podcast_info,
-    make_surveillance_kind_filter,
     write_rss_feed,
 )
 
@@ -55,7 +55,7 @@ def main():
     )
     surveillance_episodes = get_n_new_episodes(
         podcast=surveillance,
-        episode_filter=make_surveillance_kind_filter(SurveillanceKind.TK_CANDIDATE),
+        episode_filter=surveillance_filter,
         start_date=start_date,
         conn=conn,
         num_episodes=3,

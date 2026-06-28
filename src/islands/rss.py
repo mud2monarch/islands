@@ -15,7 +15,6 @@ from .models import (
     EpisodeFilter,
     MediaKind,
     Podcast,
-    SurveillanceKind,
     TranscriptKind,
 )
 
@@ -130,45 +129,6 @@ def get_n_new_episodes(
 
     logger.info(f"got {len(desired_episodes)} episodes.")
     return desired_episodes
-
-
-def make_surveillance_kind_filter(kind: SurveillanceKind) -> EpisodeFilter:
-    """Meta-function to filter elements based on SurveillanceKind
-
-    args:
-        kind: the SurveillanceKind for which you want to filter
-    returns:
-        an EpisodeFilter function
-    """
-
-    def episode_matches_kind(item: ET.Element) -> bool:
-        title = item.findtext("title", "")
-        return guess_surveillance_kind(title) == kind
-
-    return episode_matches_kind
-
-
-def guess_surveillance_kind(title: str) -> SurveillanceKind:
-    """Guess at the kind of episode based on parts of the episode title.
-
-    Args:
-        title: Title of the episode
-
-    Returns:
-        Match to a SurveillanceKind.
-
-    TK_CANDIDATE is a *guess* because there is no brand identifier in the title of Tom Keene's radio show, while the other variants of Surveillance do have identifiers.
-    """
-    if "Bloomberg Surveillance TV" in title:
-        return SurveillanceKind.FERRO
-
-    if "Single Best Idea" in title or "Tom Keene" in title:
-        return SurveillanceKind.TK_IDEA
-
-    if "The Money Show" in title:
-        return SurveillanceKind.MONEY
-
-    return SurveillanceKind.TK_CANDIDATE
 
 
 def write_rss_feed(conn: sqlite3.Connection, podcast: Podcast) -> Path:

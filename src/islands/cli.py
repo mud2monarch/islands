@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
 """
 Default use is to run
 
-uv run islands --date 2026-06-12
+uv run islands --start 2026-06-12
 
 and it auto-discovers your rss_link, refs, and text_references per-directory
 
