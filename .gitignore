@@ -5,7 +5,10 @@ __pycache__/
 
 *.db
 output/
-reference/
+reference/*
+!reference/surveillance/
+reference/surveillance/*
+!reference/surveillance/surveillance.toml
 samples/
 .DS_Store
 surveillance.rss

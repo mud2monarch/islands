@@ -1,0 +1,24 @@
+# Required: source podcast feed
+rss_url = "https://omny.fm/shows/bloomberg-surveillance/playlists/podcast.rss"
+# Optional
+start_date = 2026-06-27
+
+# Optional: Filter rules define items in the RSS feed to KEEP
+[filter]
+# Values: "all" (AND) or "any" (OR). Defines how to match to the filter rules.
+mode = "all"
+
+# Filter rules enable text matching to a field in the RSS <item>
+# You can add multiple rules and define AND or OR behavior with the `filter.mode`
+[[filter.rules]]
+# Fields: "title" or "description"
+field = "title"
+# Operators: "contains_any", "contains_none", "contains_all"
+operator = "contains_none"
+values = [
+    "Bloomberg Surveillance TV",
+    "Single Best Idea",
+    "Tom Keene",
+    "The Money Show",
+    "Bloomberg Money",
+]

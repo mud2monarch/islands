@@ -1,20 +1,19 @@
 import logging
 import os
-from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
 from rich.logging import RichHandler
 
 from islands.audio import build_clip_references, get_duration
-from islands.cli import parse_args
+from islands.config import load_podcast_config
 from islands.database import init as database_init
 from islands.database import (
     write_new_episode,
     write_new_podcast,
 )
-from islands.filters import surveillance_filter
-from islands.models import ReadyForProcessing
+from islands.filters import generate_filter
+from islands.models import PodcastReference, ReadyForProcessing
 from islands.network import get_public_object_url, upload_episode, upload_rss_feed
 from islands.process import strip_episode
 from islands.rss import (
@@ -23,7 +22,6 @@ from islands.rss import (
     write_rss_feed,
 )
 
-load_dotenv()
 logging.basicConfig(
     level=logging.INFO,
     format="%(message)s",
@@ -37,36 +35,39 @@ logging.basicConfig(
 
 
 def main():
+    REFERENCES_DIRECTORY = Path("reference/")
+    load_dotenv()
+    RSS_PREFIX = os.getenv("RSS_PREFIX")
     conn = database_init()
+    podcast_refs: list[PodcastReference] = []
     queue: list[ReadyForProcessing] = []
 
-    args = parse_args()
-    start_date: date | None = args.start_date
+    if not REFERENCES_DIRECTORY.is_dir():
+        raise ValueError("Expected a directory at references/")
 
-    RSS_PREFIX = os.getenv("RSS_PREFIX")
-    WSW_FEED = "https://omny.fm/shows/wall-street-week/playlists/podcast.rss"
-    SURVEILLANCE_FEED = (
-        "https://omny.fm/shows/bloomberg-surveillance/playlists/podcast.rss"
-    )
+    for subdir in REFERENCES_DIRECTORY.iterdir():
+        if subdir.is_dir():
+            for path in subdir.iterdir():
+                if path.suffix.lower() == ".toml":
+                    podcast_refs.append(
+                        PodcastReference(config=load_podcast_config(path), path=subdir)
+                    )
 
-    surveillance = get_podcast_info(SURVEILLANCE_FEED)
-    surveillance.text_references, surveillance.audio_references = build_clip_references(
-        Path("reference/surveillance")
-    )
-    surveillance_episodes = get_n_new_episodes(
-        podcast=surveillance,
-        episode_filter=surveillance_filter,
-        start_date=start_date,
-        conn=conn,
-        num_episodes=3,
-    )
-
-    if len(surveillance_episodes) > 0:
-        queue.append(
-            ReadyForProcessing(episodes=surveillance_episodes, podcast=surveillance)
+    for ref in podcast_refs:
+        podcast = get_podcast_info(ref.config.rss_url)
+        podcast.text_references, podcast.audio_references = build_clip_references(
+            ref.path
         )
-    else:
-        logging.warning(f"No new episodes to process for podcast {surveillance.title}.")
+        episodes = get_n_new_episodes(
+            podcast=podcast,
+            conn=conn,
+            start_date=ref.config.start_date,
+            episode_filter=generate_filter(ref.config.filter),
+        )
+        if len(episodes) > 0:
+            queue.append(ReadyForProcessing(episodes=episodes, podcast=podcast))
+        else:
+            logging.warning(f"No new episodes to process for podcast {podcast.title}.")
 
     for item in queue:
         write_new_podcast(conn, item.podcast)
