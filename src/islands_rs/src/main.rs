@@ -1,9 +1,6 @@
 use anyhow::{Context, Error};
 use base64::Engine;
-use reqwest::{
-    Client,
-    header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue},
-};
+use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::fmt::Write;
@@ -24,13 +21,6 @@ async fn main() -> Result<(), Error> {
 
     let openrouter_api_key: String =
         env::var("OPENROUTER_API_KEY").expect("Openrouter API key not set in .env file.");
-
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        AUTHORIZATION,
-        HeaderValue::from_str(&format!("Bearer {}", openrouter_api_key)).unwrap(),
-    );
-    headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
 
     let audio_b64 = encode_audio_to_base64(Path::new(AUDIO_PATH))?;
 
@@ -79,6 +69,12 @@ async fn main() -> Result<(), Error> {
 
     println!("{:?}", islands);
 
+    // Why does this need to be mutable?
+    let mut command = get_ffmpeg_command_from_chunks(AUDIO_PATH, &islands.content_chunks, None)?;
+
+    let status = command.status()?;
+    anyhow::ensure!(status.success(), "ffmpeg exited with {status}");
+
     Ok(())
 }
 
@@ -87,33 +83,60 @@ fn encode_audio_to_base64(path: &Path) -> Result<String, Error> {
     Ok(base64::engine::general_purpose::STANDARD.encode(&file))
 }
 
-fn get_ffmpeg_command_from_chunks(podcast_location: &Path, chunks: &[ContentChunk]) -> Command {
+fn get_ffmpeg_command_from_chunks(
+    podcast_location: &str,
+    chunks: &[ContentChunk],
+    output_dir: Option<&Path>,
+) -> Result<Command, Error> {
+    let output_dir = output_dir.unwrap_or(Path::new("outputs/clean/"));
+
+    // We need to produce an ffmpeg argument for `-filter_complex` in the following form
+    // (as an example splitting then joining three segments):
+    //
     // [0:a:0]asplit=3[a0][a1][a2];
     // [a0]atrim=start=72:end=504,asetpts=PTS-STARTPTS[c0];
     // [a1]atrim=start=609:end=1038,asetpts=PTS-STARTPTS[c1];
     // [a2]atrim=start=1179:end=1546,asetpts=PTS-STARTPTS[c2];
     // [c0][c1][c2]concat=n=3:v=0:a=1[out]
-    let mut filter_graph = format!("[0:a:0]asplit={}", chunks.len());
-    for i in 0..chunks.len() - 1 {
-        write!(filter_graph, "[a{}]", i).unwrap();
+    let num_chunks = chunks.len();
+
+    let mut filter_graph = format!("[0:a:0]asplit={num_chunks}");
+
+    for i in 0..num_chunks {
+        write!(filter_graph, "[a{i}]").unwrap();
     }
     write!(filter_graph, ";").unwrap();
-    for i in 0..chunks.len() - 1 {
+    for i in 0..num_chunks {
         write!(
             filter_graph,
-            "[a{}]atrim=start={}:end={},asetpts=PTS-STARTPTS[c{}];",
-            i, chunks[i].start_seconds, chunks[i].end_seconds, i
+            "[a{i}]atrim=start={}:end={},asetpts=PTS-STARTPTS[c{i}];",
+            chunks[i].start_seconds, chunks[i].end_seconds
         )
         .expect(
-            "writing to string should succeed; indices of chunks all between 0..chunks.len()-1",
+            "writing to string should succeed; indices of chunks all between 0..chunks.len(), range exclusive",
         );
     }
-    for i in 0..chunks.len() - 1 {
-        write!(filter_graph, "[c{}]", i).unwrap();
+    for i in 0..num_chunks {
+        write!(filter_graph, "[c{i}]").unwrap();
     }
-    write!(filter_graph, "concat=n={}:v=0:a=1[out]", chunks.len()).unwrap();
+    write!(filter_graph, "concat=n={num_chunks}:v=0:a=1[out]").unwrap();
 
-    Command::new("ffmpeg")
+    // println!("{}", filter_graph);
+
+    std::fs::create_dir_all(output_dir)?;
+
+    let mut command = Command::new("ffmpeg");
+    command.args([
+        "-i",
+        podcast_location,
+        "-filter_complex",
+        &filter_graph,
+        "-map",
+        "[out]",
+    ]);
+    command.arg(output_dir.join("edited-podcast.mp3"));
+
+    Ok(command)
 }
 
 #[derive(Deserialize, Debug)]
