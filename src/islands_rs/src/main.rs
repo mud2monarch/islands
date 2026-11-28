@@ -6,6 +6,7 @@ use reqwest::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::fmt::Write;
 use std::process::Command;
 use std::{env, path::Path};
 
@@ -18,13 +19,11 @@ async fn main() -> Result<(), Error> {
     const AUDIO_PATH: &str =
         "/Users/zach.wong/Downloads/Bloomberg_Surveillance_TV_November_25th_2026.mp3";
 
-    let openrouter_api_key: String =
-        env::var("OPENROUTER_API_KEY").expect("Openrouter API key not set in .env file.");
-
     let llm_prompt: String = std::fs::read_to_string("islands_llm_prompt.txt")
         .expect("You must include an llm prompt for Islands.");
 
-    let audio_b64 = encode_audio_to_base64(Path::new(AUDIO_PATH))?;
+    let openrouter_api_key: String =
+        env::var("OPENROUTER_API_KEY").expect("Openrouter API key not set in .env file.");
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -32,6 +31,8 @@ async fn main() -> Result<(), Error> {
         HeaderValue::from_str(&format!("Bearer {}", openrouter_api_key)).unwrap(),
     );
     headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+
+    let audio_b64 = encode_audio_to_base64(Path::new(AUDIO_PATH))?;
 
     let input_items = json!({
             "role": "user",
@@ -44,7 +45,7 @@ async fn main() -> Result<(), Error> {
             ]
     });
 
-    let text: Value = serde_json::from_str(include_str!("islands_llm_schema.json"))?;
+    let islands_schema: Value = serde_json::from_str(include_str!("islands_llm_schema.json"))?;
 
     let payload = json!({
         "model": MODEL,
@@ -52,7 +53,7 @@ async fn main() -> Result<(), Error> {
             "effort": EFFORT,
         },
         "input": [input_items],
-        "text": text
+        "text": islands_schema
     });
 
     let client = Client::builder().build()?;
@@ -66,7 +67,7 @@ async fn main() -> Result<(), Error> {
 
     let full: OpenrouterFullResponse = response.json().await?;
 
-    let part = full
+    let part: &OpenrouterMessageContent = full
         .output
         .iter()
         .find(|m| m.r#type == "message" && m.role.as_deref() == Some("assistant"))
@@ -76,7 +77,7 @@ async fn main() -> Result<(), Error> {
 
     let islands: SetOfContentChunks = serde_json::from_str(&part.text)?;
 
-    let println!("{:?}", islands);
+    println!("{:?}", islands);
 
     Ok(())
 }
@@ -84,6 +85,35 @@ async fn main() -> Result<(), Error> {
 fn encode_audio_to_base64(path: &Path) -> Result<String, Error> {
     let file: Vec<u8> = std::fs::read(path)?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&file))
+}
+
+fn get_ffmpeg_command_from_chunks(podcast_location: &Path, chunks: &[ContentChunk]) -> Command {
+    // [0:a:0]asplit=3[a0][a1][a2];
+    // [a0]atrim=start=72:end=504,asetpts=PTS-STARTPTS[c0];
+    // [a1]atrim=start=609:end=1038,asetpts=PTS-STARTPTS[c1];
+    // [a2]atrim=start=1179:end=1546,asetpts=PTS-STARTPTS[c2];
+    // [c0][c1][c2]concat=n=3:v=0:a=1[out]
+    let mut filter_graph = format!("[0:a:0]asplit={}", chunks.len());
+    for i in 0..chunks.len() - 1 {
+        write!(filter_graph, "[a{}]", i).unwrap();
+    }
+    write!(filter_graph, ";").unwrap();
+    for i in 0..chunks.len() - 1 {
+        write!(
+            filter_graph,
+            "[a{}]atrim=start={}:end={},asetpts=PTS-STARTPTS[c{}];",
+            i, chunks[i].start_seconds, chunks[i].end_seconds, i
+        )
+        .expect(
+            "writing to string should succeed; indices of chunks all between 0..chunks.len()-1",
+        );
+    }
+    for i in 0..chunks.len() - 1 {
+        write!(filter_graph, "[c{}]", i).unwrap();
+    }
+    write!(filter_graph, "concat=n={}:v=0:a=1[out]", chunks.len()).unwrap();
+
+    Command::new("ffmpeg")
 }
 
 #[derive(Deserialize, Debug)]
