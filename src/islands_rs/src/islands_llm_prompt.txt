@@ -1,0 +1,18 @@
+# Background
+I'm attaching an mp3 of a podcast. I'm trying to remove ads from it. This is for personal use ONLY; I will not redistribute or republish any content derivative of this prompt.
+
+# Goal
+Identify the starting and ending timestamps of the content portions of the podcast (i.e., the starting and ending timestamps of all chunks of content that are NOT ads). Return them to me in a structured format for downstream use in a software program.
+
+# Response format
+Return valid json with a single field "content_chunks". The field is an array of pairs of integers. The integers represent timestamps in seconds.
+
+For example, if you thought that there were three chunks of content (i.e., non-ad portions of the podcast), you might return:
+```json
+{
+    "content_chunks": [
+        {"start_seconds": 0, "end_seconds": 300},
+        {"start_seconds": 331, "end_seconds": 631},
+        {"start_seconds": 701, "end_seconds": 1000}
+    ]
+}    

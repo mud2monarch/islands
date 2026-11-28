@@ -1,0 +1,142 @@
+{
+  "id":"gen-1795834924-gU7AG3Tiw3uMtNclwXfb",
+  "object":"response",
+  "created_at":1795834924,
+  "model":"google/gemini-3.8-flash",
+  "status":"completed",
+  "completed_at":1795834936,
+  "output":[
+    {
+      "id":"rs_tmp_73rmouqfvxj",
+      "type":"reasoning",
+      "status":"completed",
+      "content":[
+        {
+          "type":"reasoning_text",
+          "text":"**Extracting Content Segments**\n\nI'm currently focused on identifying and isolating the core content segments from the podcast audio, specifically excluding any advertisements. My analysis of the timeline shows a series of ads at the beginning, and I'm now zeroing in on the actual content following those.\n\n**Isolating Key Segments**\n\nI've refined my focus to pinpoint the exact start and end times of the editorial content, meticulously distinguishing it from commercial breaks. My current task involves confirming these boundaries and preparing to extract the relevant audio segments.\n\n"
+        }
+      ],
+      "summary":[
+        
+      ],
+      "format":"google-gemini-v1"
+    },
+    {
+      "id":"msg_tmp_1bazoqmkdam",
+      "type":"message",
+      "role":"assistant",
+      "status":"completed",
+      "content":[
+        {
+          "type":"output_text",
+          "text":"{\n  \"content_chunks\": [\n    {\n      \"start_seconds\": 72,\n      \"end_seconds\": 504\n    },\n    {\n      \"start_seconds\": 609,\n      \"end_seconds\": 1038\n    },\n    {\n      \"start_seconds\": 1179,\n      \"end_seconds\": 1546\n    }\n  ]\n}",
+          "annotations":[
+            
+          ],
+          "logprobs":[
+            
+          ]
+        }
+      ]
+    },
+    {
+      "id":"rs_tmp_1q8hfdpkfbf",
+      "type":"reasoning",
+      "status":"completed",
+      "summary":[
+        
+      ],
+      "encrypted_content":"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.eyJlbmRwb2ludF9zbHVnIjoiZ29vZ2xlL2dlbWluaS0zLjgtZmxhc2gtMjAyNjA5MDJ8Z29vZ2xlLXZlcnRleC9nbG9iYWwifQ",
+      "format":"google-gemini-v1"
+    }
+  ],
+  "error":"None",
+  "incomplete_details":"None",
+  "access_programs":"None",
+  "tools":[
+    
+  ],
+  "tool_choice":"auto",
+  "parallel_tool_calls":true,
+  "max_output_tokens":"None",
+  "temperature":1,
+  "top_p":1,
+  "presence_penalty":0,
+  "frequency_penalty":0,
+  "top_logprobs":0,
+  "max_tool_calls":"None",
+  "metadata":{
+    
+  },
+  "background":false,
+  "previous_response_id":"None",
+  "service_tier":"default",
+  "truncation":"disabled",
+  "store":false,
+  "instructions":"None",
+  "text":{
+    "format":{
+      "type":"json_schema",
+      "name":"podcast_content",
+      "strict":true,
+      "schema":{
+        "type":"object",
+        "properties":{
+          "content_chunks":{
+            "type":"array",
+            "description":"Chronologically ordered, non-overlapping intervals of podcast content to preserve, excluding advertisements.",
+            "items":{
+              "type":"object",
+              "properties":{
+                "start_seconds":{
+                  "type":"integer",
+                  "description":"Absolute timestamp in seconds at which the editorial content begins.",
+                  "minimum":0
+                },
+                "end_seconds":{
+                  "type":"integer",
+                  "description":"Absolute timestamp in seconds at which the editorial content ends.",
+                  "minimum":0
+                }
+              },
+              "required":[
+                "start_seconds",
+                "end_seconds"
+              ],
+              "additionalProperties":false
+            }
+          }
+        },
+        "required":[
+          "content_chunks"
+        ],
+        "additionalProperties":false
+      }
+    }
+  },
+  "reasoning":{
+    "effort":"medium"
+  },
+  "safety_identifier":"None",
+  "prompt_cache_key":"None",
+  "prompt_cache_options":"None",
+  "usage":{
+    "input_tokens":41300,
+    "input_tokens_details":{
+      "cached_tokens":0,
+      "cache_write_tokens":0
+    },
+    "output_tokens":886,
+    "output_tokens_details":{
+      "reasoning_tokens":783
+    },
+    "total_tokens":42186,
+    "cost":0.0342975,
+    "is_byok":false,
+    "cost_details":{
+      "upstream_inference_cost":0.0342975,
+      "upstream_inference_input_cost":0.030975,
+      "upstream_inference_output_cost":0.0033225
+    }
+  }
+}

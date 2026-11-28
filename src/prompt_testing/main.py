@@ -115,19 +115,21 @@ def call_model(model: str, effort: str, prompt: str = LLM_PROMPT) -> None:
     response = requests.post(openrouter_url, headers=openrouter_headers, json=payload)
     result = response.json()
 
-    assistant_text = "".join(
-        part["text"]
-        for item in result["output"]
-        if item["type"] == "message" and item["role"] == "assistant"
-        for part in item["content"]
-        if part["type"] == "output_text"
-    )
+    print(result)
 
-    cost = result["usage"]["cost"]
-
-    print(f"Ran prompt against {model} on {effort} reasoning.")
-    print(assistant_text)
-    print(f"Cost: ${cost:.6f}")
+    # assistant_text = "".join(
+    #     part["text"]
+    #     for item in result["output"]
+    #     if item["type"] == "message" and item["role"] == "assistant"
+    #     for part in item["content"]
+    #     if part["type"] == "output_text"
+    # )
+    #
+    # cost = result["usage"]["cost"]
+    #
+    # print(f"Ran prompt against {model} on {effort} reasoning.")
+    # print(assistant_text)
+    # print(f"Cost: ${cost:.6f}")
 
 
 def generate_tests(model, effort, num_runs=3) -> list[tuple[str, str]]:
@@ -148,10 +150,10 @@ def main() -> None:
     # google/gemini-4-carbon                 $0.154   84.3%
 
     tests = []
-    tests.extend(generate_tests("google/gemini-3.8-flash", "medium", num_runs=10))
-    tests.extend(generate_tests("google/gemini-3.8-flash", "high", num_runs=10))
-    tests.extend(generate_tests("google/gemini-4-hydrogen", "medium", num_runs=10))
-    tests.extend(generate_tests("google/gemini-4-hydrogen", "high", num_runs=10))
+    tests.extend(generate_tests("google/gemini-3.8-flash", "medium", num_runs=1))
+    # tests.extend(generate_tests("google/gemini-3.8-flash", "high", num_runs=10))
+    # tests.extend(generate_tests("google/gemini-4-hydrogen", "medium", num_runs=10))
+    # tests.extend(generate_tests("google/gemini-4-hydrogen", "high", num_runs=10))
 
     for index, _ in enumerate(tests):
         call_model(model=tests[index][0], effort=tests[index][1])

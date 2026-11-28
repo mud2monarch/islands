@@ -1,0 +1,36 @@
+{        
+        "format": {
+            "type": "json_schema",
+            "name": "podcast_content",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                    "properties": {
+                        "content_chunks": {
+                            "type": "array",
+                            "description": "Chronologically ordered, non-overlapping intervals of podcast content to preserve, excluding advertisements.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "start_seconds": {
+                                        "type": "integer",
+                                        "description": "Absolute timestamp in seconds at which the editorial content begins.",
+                                        "minimum": 0
+                                    },
+                                    "end_seconds": {
+                                        "type": "integer",
+                                        "description": "Absolute timestamp in seconds at which the editorial content ends.",
+                                        "minimum": 0
+                                    }
+                                },
+                                "required": ["start_seconds", "end_seconds"],
+                                "additionalProperties": false
+                            }
+                        }
+                    },
+                    "required": ["content_chunks"],
+                    "additionalProperties": false
+                }
+            }
+        }
+ 
